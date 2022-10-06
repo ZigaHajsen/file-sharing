@@ -28,8 +28,17 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 
   const file = await File.create(fileData);
-  console.log(file);
-  res.send(file.originalName);
+
+  res.render('index', { fileLink: `${req.headers.origin}/file/${file.id}` });
+});
+
+app.get('/file/:id', async (req, res) => {
+  const file = await File.findById(req.params.id);
+
+  file.downloadCount++;
+  await file.save();
+
+  res.download(file.path, file.originalName);
 });
 
 app.listen(process.env.PORT);
