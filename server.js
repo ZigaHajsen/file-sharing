@@ -8,7 +8,10 @@ const bcrypt = require('bcrypt');
 const File = require('./models/File');
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
+
 const upload = multer({ dest: 'uploads' });
+
 mongoose.connect(process.env.DATABASE_URL);
 
 app.set('view engine', 'ejs');
@@ -32,13 +35,27 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   res.render('index', { fileLink: `${req.headers.origin}/file/${file.id}` });
 });
 
-app.get('/file/:id', async (req, res) => {
+app.route('/file/:id').get(handleDownload).post(handleDownload);
+
+const handleDownload = async (req, res) => {
   const file = await File.findById(req.params.id);
+
+  if (!!file.password) {
+    if (req.body.password == null) {
+      res.render('password');
+      return;
+    }
+  }
+
+  if (!(await bcrypt.compare(req.body.password, file.password))) {
+    res.render('password', { error: true });
+    return;
+  }
 
   file.downloadCount++;
   await file.save();
 
   res.download(file.path, file.originalName);
-});
+};
 
 app.listen(process.env.PORT);
